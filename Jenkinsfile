@@ -1,34 +1,39 @@
-node {
-    def app
+pipeline{
 
-    stage('Clone repository') {
-      
+	agent any
 
-        checkout scm
-    }
+	environment {
+		DOCKERHUB_CREDENTIALS=credentials('dockerhub-cred')
+	}
 
-    stage('Build image') {
-  
-       app = docker.build("raj80dockerid/test")
-    }
+	stages {
 
-    stage('Test image') {
-  
+		stage('Build') {
 
-        app.inside {
-            sh 'echo "Tests passed"'
-        }
-    }
+			steps {
+				sh 'docker build -t sammydev3564/argo:latest .'
+			}
+		}
 
-    stage('Push image') {
-        
-        docker.withRegistry('https://registry.hub.docker.com', 'dockerhub') {
-            app.push("${env.BUILD_NUMBER}")
-        }
-    }
-    
-    stage('Trigger ManifestUpdate') {
-                echo "triggering updatemanifestjob"
-                build job: 'updatemanifest', parameters: [string(name: 'DOCKERTAG', value: env.BUILD_NUMBER)]
-        }
+		stage('Login') {
+
+			steps {
+				sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
+			}
+		}
+
+		stage('Push') {
+
+			steps {
+				sh 'docker push sammydev3564/argo:latest'
+			}
+		}
+	}
+
+	post {
+		always {
+			sh 'docker logout'
+		}
+	}
+
 }
